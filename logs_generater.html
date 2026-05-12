@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BMS Live Log Generator</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #f4f7fb;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+    }
+
+    .container {
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        width: 600px;
+        text-align: center;
+    }
+
+    h1 {
+        margin-bottom: 10px;
+        color: #1e293b;
+    }
+
+    p {
+        color: #64748b;
+        margin-bottom: 30px;
+    }
+
+    button {
+        padding: 12px 24px;
+        margin: 10px;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+    }
+
+    #startBtn {
+        background: #16a34a;
+        color: white;
+    }
+
+    #stopBtn {
+        background: #dc2626;
+        color: white;
+    }
+
+    pre {
+        margin-top: 20px;
+        background: #0f172a;
+        color: #22c55e;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: left;
+        height: 250px;
+        overflow-y: auto;
+        font-size: 13px;
+    }
+</style>
+</head>
+<body>
+
+<div class="container">
+    <h1>BMS Live Log Generator</h1>
+    <p>Click Start to generate simulated energy logs every 10 seconds.</p>
+
+    <button id="startBtn">▶ Start Logging</button>
+    <button id="stopBtn">⏹ Stop Logging</button>
+
+    <pre id="output"></pre>
+</div>
+
+<script>
+const devices = [
+    { name: "AC-101", type: "HVAC", location: "Room 101", floor: "Floor 1" },
+    { name: "Main Meter", type: "meter", location: "Electrical Room", floor: "Basement" },
+    { name: "Water Pump", type: "pump", location: "Basement", floor: "Basement" },
+    { name: "Escalator-1", type: "motor", location: "Mall Ground Floor", floor: "Ground" },
+    { name: "Lift-A", type: "motor", location: "Office Block A", floor: "All Floors" },
+    { name: "Server Cooling", type: "HVAC", location: "Server Room", floor: "Floor 2" }
+];
+
+let intervalId = null;
+let logBuffer = [];
+
+function randomChoice(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomFloat(min, max) {
+    return (Math.random() * (max - min) + min).toFixed(2);
+}
+
+function generateLog() {
+    const device = randomChoice(devices);
+    const status = Math.random() > 0.2 ? "ON" : "OFF";
+    // 20% chance to be exactly 0, otherwise 1-20
+    const occupied = Math.random() < 0.2 ? 0 : Math.floor(Math.random() * 20) + 1;
+    const powerKw = status === "ON" ? randomFloat(0.5, 25) : "0.00";
+
+    const timestamp = new Date().toISOString().replace("T", " ").substring(0, 19);
+
+    const logLine =
+        `${timestamp} | ${device.name} | ${device.type} | ${status} | ${device.location} | ${powerKw} kW | ${occupied} | ${device.floor}`;
+
+    // Display
+    const output = document.getElementById("output");
+    output.textContent += logLine + "\n";
+    output.scrollTop = output.scrollHeight;
+
+    // Store locally on the server via API
+    fetch('http://localhost:3000/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logLine })
+    }).catch(err => console.error("Error saving log:", err));
+}
+
+document.getElementById("startBtn").addEventListener("click", () => {
+    if (intervalId) return; // already running
+
+    generateLog(); // immediate first log
+    intervalId = setInterval(generateLog, 10000);
+});
+
+document.getElementById("stopBtn").addEventListener("click", () => {
+    clearInterval(intervalId);
+    intervalId = null;
+});
+
+// Load today's existing logs from the server on page load
+window.onload = () => {
+    fetch('http://localhost:3000/api/logs')
+        .then(res => res.text())
+        .then(savedLogs => {
+            if (savedLogs) {
+                const output = document.getElementById("output");
+                output.textContent = savedLogs;
+                output.scrollTop = output.scrollHeight;
+            }
+        })
+        .catch(err => console.error("Error loading logs:", err));
+};
+</script>
+
+</body>
+</html>

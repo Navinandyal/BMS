@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { format, subHours, subDays, startOfDay } from 'date-fns';
 import dotenv from 'dotenv';
 import { GoogleGenAI } from '@google/genai';
+import fs from 'fs';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -355,6 +356,42 @@ async function startServer() {
     db.prepare('UPDATE devices SET status = ?, last_active = CURRENT_TIMESTAMP WHERE id = ?').run(action, deviceId);
     db.prepare('INSERT INTO automation_actions (device_id, action, triggered_by) VALUES (?, ?, ?)').run(deviceId, action, req.user.username);
     res.json({ success: true });
+  });
+
+  app.post('/api/logs', (req, res) => {
+    try {
+      const { logLine } = req.body;
+      if (!logLine) {
+        return res.status(400).json({ error: 'logLine is required' });
+      }
+      const logsDir = path.join(process.cwd(), 'logs');
+      if (!fs.existsSync(logsDir)) {
+        fs.mkdirSync(logsDir, { recursive: true });
+      }
+      const today = new Date().toISOString().split('T')[0];
+      const logFile = path.join(logsDir, `${today}.log`);
+      fs.appendFileSync(logFile, logLine + '\n');
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error('Error writing log:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.get('/api/logs', (req, res) => {
+    try {
+      const logsDir = path.join(process.cwd(), 'logs');
+      const today = new Date().toISOString().split('T')[0];
+      const logFile = path.join(logsDir, `${today}.log`);
+      if (fs.existsSync(logFile)) {
+        const logs = fs.readFileSync(logFile, 'utf8');
+        res.send(logs);
+      } else {
+        res.send('');
+      }
+    } catch (err: any) {
+      res.status(500).send('');
+    }
   });
 
   // Vite middleware for development
