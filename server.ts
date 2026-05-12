@@ -262,7 +262,7 @@ async function startServer() {
     try {
       const genai = new GoogleGenAI({ apiKey });
       const result = await genai.models.generateContent({
-        model: 'gemini-2.0-flash-lite',
+        model: 'gemini-2.5-flash',
         contents: prompt,
       });
       const text = result.text ?? '';
@@ -306,7 +306,7 @@ async function startServer() {
       activeDevices: activeDevices.count,
       currentPowerDemand: totalPower.total || 0,
       totalEnergyToday: last24h.consumption || 0,
-      estimatedCost: (last24h.consumption || 0) * 0.15, // $0.15 per kWh
+      estimatedCost: (last24h.consumption || 0) * 12.5, // ₹12.5 per kWh
       carbonEmissions: (last24h.consumption || 0) * 0.4, // 0.4kg CO2 per kWh
       wastePercentage: Math.floor(Math.random() * 15) + 5 // Simulated waste
     });
@@ -314,13 +314,20 @@ async function startServer() {
 
   app.get('/api/devices', authenticateToken, (req, res) => {
     const devices = db.prepare(`
-      SELECT d.*, r.name as room_name, f.floor_number, b.name as building_name
+      SELECT d.*, r.name as room_name, f.floor_number, b.name as building_name,
+      (SELECT SUM(power_kw) FROM device_logs WHERE device_id = d.id AND timestamp >= datetime('now', '-24 hours')) as calculated_energy
       FROM devices d
       JOIN rooms r ON d.room_id = r.id
       JOIN floors f ON r.floor_id = f.id
       JOIN buildings b ON f.building_id = b.id
     `).all();
-    res.json(devices);
+    
+    const processedDevices = devices.map((d: any) => ({
+      ...d,
+      daily_energy: Number((d.calculated_energy || d.daily_energy || 0).toFixed(2))
+    }));
+    
+    res.json(processedDevices);
   });
 
   app.get('/api/alerts', authenticateToken, (req, res) => {

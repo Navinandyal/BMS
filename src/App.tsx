@@ -300,25 +300,7 @@ export default function App() {
             icon={<Zap className="w-5 h-5" />}
             label="Monitoring"
           />
-          <NavButton 
-            active={activePage === 'alerts'} 
-            onClick={() => { setActivePage('alerts'); setIsSidebarOpen(false); }}
-            icon={<Bell className="w-5 h-5" />}
-            label="Alerts Center"
-            count={alerts.filter(a => a.status === 'UNREAD').length}
-          />
-          <NavButton 
-            active={activePage === 'recommendations'} 
-            onClick={() => { setActivePage('recommendations'); setIsSidebarOpen(false); }}
-            icon={<Lightbulb className="w-5 h-5" />}
-            label="AI Insights"
-          />
-          <NavButton 
-            active={activePage === 'reports'} 
-            onClick={() => { setActivePage('reports'); setIsSidebarOpen(false); }}
-            icon={<FileText className="w-5 h-5" />}
-            label="Reports"
-          />
+
         </nav>
 
         <div className="p-6 border-t border-white/10">
@@ -395,12 +377,12 @@ export default function App() {
                   <StatCard 
                     label="Daily Energy" 
                     value={`${summary?.totalEnergyToday.toFixed(1)} kWh`}
-                    subtitle={`Est. Cost: $${summary?.estimatedCost.toFixed(1)}`}
+                    subtitle={`Est. Cost: ₹${summary?.estimatedCost.toFixed(1)}`}
                     icon={<BarChart3 className="text-indigo-400" />}
                   />
                   <StatCard 
                     label="Monthly Cost" 
-                    value={`$${(summary?.estimatedCost || 0 * 30).toLocaleString()}`}
+                    value={`₹${((summary?.estimatedCost || 0) * 30).toLocaleString()}`}
                     subtitle="Estimated Forecast"
                     icon={<Building2 className="text-emerald-400" />}
                   />
@@ -483,39 +465,8 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                   {/* Recent Alerts */}
-                   <div className="glass-card flex flex-col p-6">
-                     <div className="flex items-center justify-between mb-6">
-                        <h3 className="font-semibold text-lg">System Health Notifications</h3>
-                        <button className="text-cyan-400 text-xs font-bold hover:underline" onClick={() => setActivePage('alerts')}>History</button>
-                     </div>
-                     <div className="space-y-3">
-                        {alerts.slice(0, 3).map(alert => (
-                          <div key={alert.id} className="flex gap-4 p-4 rounded-2xl bg-white/5 border border-white/5 hover:border-white/10 transition-all group">
-                             <div className={cn(
-                               "w-10 h-10 rounded-xl flex items-center justify-center shrink-0",
-                               alert.severity === 'Critical' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
-                             )}>
-                               <AlertTriangle className="w-5 h-5" />
-                             </div>
-                             <div className="flex-1 min-w-0">
-                               <div className="flex items-center justify-between mb-1">
-                                 <span className="font-bold text-sm truncate">{alert.device_name}</span>
-                                 <span className="text-[10px] text-slate-500 font-bold whitespace-nowrap">{new Date(alert.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                               </div>
-                               <p className="text-xs text-slate-400 leading-relaxed mb-3 line-clamp-2">{alert.message}</p>
-                               <span className={cn(
-                                 "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border",
-                                 alert.severity === 'Critical' ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'bg-amber-500/10 text-amber-500 border-amber-500/20'
-                               )}>
-                                 {alert.severity}
-                               </span>
-                             </div>
-                          </div>
-                        ))}
-                     </div>
-                   </div>
+                <div className="grid grid-cols-1 gap-6">
+
 
                    {/* Quick Controls */}
                    <div className="glass-card flex flex-col p-6">
@@ -824,7 +775,7 @@ const DeviceDetailModal = ({ device, onClose, token }: { device: Device | null, 
     setLoading(true);
     setRecommendation('');
     try {
-      const prompt = `As an AI Building Energy Expert, provide a detailed energy analysis and recommendation for this specific device:
+      const prompt = `As an AI Building Energy Expert, provide a short, actionable energy schedule for this specific device:
 
 Device Name: ${device.name}
 Type: ${device.type}
@@ -833,12 +784,11 @@ Current Status: ${device.status}
 Current Power Draw: ${device.current_power} kW
 Historical Energy (48h): ${device.daily_energy} kWh
 
-Please provide:
-1. A brief analysis of its current performance.
-2. Three specific actionable recommendations for improving its efficiency.
-3. A suggested schedule for when it should be ON vs OFF.
+Please provide ONLY:
+1. A brief 1-sentence performance note.
+2. 2-3 bullet points with specific times to turn the device ON and OFF for maximum efficiency.
 
-Format the response with clear headings and bullet points. Keep it professional and concise.`;
+Keep it very short and easy to read at a glance.`;
       const text = await callAI(token, prompt);
       setRecommendation(text);
     } catch (error: any) {
@@ -989,15 +939,6 @@ Format the response with clear headings and bullet points. Keep it professional 
               className="btn-ghost px-6"
             >
               Close
-            </button>
-            <button 
-              className="btn-primary px-6"
-              onClick={() => {
-                alert("Smart schedule override engaged. This node will now follow AI-optimized protocols.");
-                onClose();
-              }}
-            >
-              Apply AI Schedule
             </button>
           </div>
         </motion.div>
